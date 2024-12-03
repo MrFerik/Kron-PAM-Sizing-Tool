@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kron PAM Sizing Tool</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f4f4f9;
+      color: #333;
+    }
+    .container {
+      max-width: 600px;
+      margin: auto;
+      text-align: center;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    .slider-container, .deployment-container, .ha-container {
+      margin: 20px 0;
+    }
+    .output {
+      margin-top: 20px;
+      padding: 20px;
+      border: 2px solid #007BFF;
+      background-color: #e7f1ff;
+      border-radius: 10px;
+    }
+    .output h2 {
+      color: #007BFF;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+    }
+    .dropdown {
+      margin-bottom: 20px;
+    }
+    select, input[type="range"] {
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Kron PAM Sizing Tool</h1>
+    <div class="deployment-container">
+      <label for="deployment">Deployment Type:</label>
+      <select id="deployment">
+        <option value="all-in-one">All-in-One Deployment</option>
+        <option value="distributed">Distributed Deployment</option>
+      </select>
+    </div>
+    <div class="ha-container" id="haContainer" style="display: none;">
+      <label for="ha">High Availability (HA):</label>
+      <select id="ha">
+        <option value="disabled">HA Disabled</option>
+        <option value="enabled">HA Enabled</option>
+      </select>
+    </div>
+    <div class="slider-container">
+      <label for="sessions">Number of Active Sessions: <span id="sessionCount">10</span></label>
+      <input type="range" id="sessions" min="1" max="100" value="10" step="1">
+    </div>
+    <div class="output">
+      <h2>Recommended Configuration</h2>
+      <p><strong>RAM:</strong> <span id="ram">10 GB</span></p>
+      <p><strong>CPU:</strong> <span id="cpu">6 Cores</span></p>
+      <p><strong>Disk:</strong> <span id="disk">600 GB</span></p>
+      <p><strong>Assumption:</strong> <span id="assumption">10 daily sessions lasting 5 hours each</span></p>
+      <div id="distributedOutput" style="display: none;">
+        <h3>Distributed Deployment Resources:</h3>
+        <div id="haDisabledOutput">
+          <p><strong>Application Server:</strong> <span id="appServerResources"></span></p>
+          <p><strong>Database Server:</strong> <span id="dbServerResources"></span></p>
+        </div>
+        <div id="haEnabledOutput" style="display: none;">
+          <p><strong>Application Server 1:</strong> <span id="appServer1Resources"></span></p>
+          <p><strong>Application Server 2:</strong> <span id="appServer2Resources"></span></p>
+          <p><strong>Database Server 1:</strong> <span id="dbServer1Resources"></span></p>
+          <p><strong>Database Server 2:</strong> <span id="dbServer2Resources"></span></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const sessions = document.getElementById("sessions");
+    const sessionCount = document.getElementById("sessionCount");
+    const ram = document.getElementById("ram");
+    const cpu = document.getElementById("cpu");
+    const disk = document.getElementById("disk");
+    const assumption = document.getElementById("assumption");
+    const deployment = document.getElementById("deployment");
+    const ha = document.getElementById("ha");
+    const haContainer = document.getElementById("haContainer");
+    const distributedOutput = document.getElementById("distributedOutput");
+    const haDisabledOutput = document.getElementById("haDisabledOutput");
+    const haEnabledOutput = document.getElementById("haEnabledOutput");
+    const appServerResources = document.getElementById("appServerResources");
+    const dbServerResources = document.getElementById("dbServerResources");
+    const appServer1Resources = document.getElementById("appServer1Resources");
+    const appServer2Resources = document.getElementById("appServer2Resources");
+    const dbServer1Resources = document.getElementById("dbServer1Resources");
+    const dbServer2Resources = document.getElementById("dbServer2Resources");
+
+    const configurations = [
+      { maxSessions: 10, ram: "10 GB", cpu: "6 Cores", disk: "600 GB", assumption: "10 daily sessions lasting 5 hours each" },
+      { maxSessions: 25, ram: "16 GB", cpu: "8 Cores", disk: "1.5 TB", assumption: "25 daily sessions lasting 5 hours each" },
+      { maxSessions: 50, ram: "24 GB", cpu: "10 Cores", disk: "3 TB", assumption: "50 daily sessions lasting 5 hours each" },
+      { maxSessions: 75, ram: "32 GB", cpu: "12 Cores", disk: "4.5 TB", assumption: "75 daily sessions lasting 5 hours each" },
+      { maxSessions: 100, ram: "64 GB", cpu: "16 Cores", disk: "6 TB", assumption: "100 daily sessions lasting 5 hours each" },
+    ];
+
+    function updateConfiguration() {
+  const activeSessions = parseInt(sessions.value, 10);
+  sessionCount.textContent = activeSessions;
+
+  const config = configurations.find(c => activeSessions <= c.maxSessions);
+  ram.textContent = config.ram;
+  cpu.textContent = config.cpu;
+  disk.textContent = config.disk;
+  assumption.textContent = config.assumption;
+
+  if (deployment.value === "distributed") {
+    distributedOutput.style.display = "block";
+    haContainer.style.display = "block";
+
+    if (ha.value === "disabled") {
+      haDisabledOutput.style.display = "block";
+      haEnabledOutput.style.display = "none";
+      appServerResources.textContent = `${parseInt(config.ram) / 2} GB RAM, ${Math.ceil(parseInt(config.cpu) / 2)} Cores, 600 GB Disk`;
+      dbServerResources.textContent = `${parseInt(config.ram) / 2} GB RAM, ${Math.floor(parseInt(config.cpu) / 2)} Cores, ${config.disk} Disk`;
+    } else {
+      haDisabledOutput.style.display = "none";
+      haEnabledOutput.style.display = "block";
+      
+      // Adjust the disk size calculation to be more realistic
+      const totalDisk = parseFloat(config.disk);  // Disk size in TB
+      let halfDisk;
+      
+      if (activeSessions <= 10) {
+        // For 1-10 users, use a more appropriate disk size (e.g., 300 GB instead of 0.3 TB)
+        halfDisk = 0.3;  // This is 0.3 TB, which is 300 GB
+      } else {
+        // For larger user counts, split the disk more realistically
+        halfDisk = totalDisk / 2;
+      }
+
+      // Format the disk output to show GB or TB based on the size
+      function formatDiskSize(diskSize) {
+        if (diskSize >= 1) {
+          return `${diskSize} TB`;  // Display in TB if it's >= 1 TB
+        } else {
+          return `${diskSize * 1000} GB`;  // Convert to GB if it's less than 1 TB
+        }
+      }
+
+      appServer1Resources.textContent = `${parseInt(config.ram) / 4} GB RAM, ${Math.ceil(parseInt(config.cpu) / 4)} Cores, 600 GB Disk`;
+      appServer2Resources.textContent = `${parseInt(config.ram) / 4} GB RAM, ${Math.ceil(parseInt(config.cpu) / 4)} Cores, 600 GB Disk`;
+      dbServer1Resources.textContent = `${parseInt(config.ram) / 4} GB RAM, ${Math.floor(parseInt(config.cpu) / 4)} Cores, ${formatDiskSize(halfDisk)}`;
+      dbServer2Resources.textContent = `${parseInt(config.ram) / 4} GB RAM, ${Math.floor(parseInt(config.cpu) / 4)} Cores, ${formatDiskSize(halfDisk)}`;
+    }
+  } else {
+    distributedOutput.style.display = "none";
+    haContainer.style.display = "none";
+  }
+}
+
+
+
+
+    sessions.addEventListener("input", updateConfiguration);
+    deployment.addEventListener("change", updateConfiguration);
+    ha.addEventListener("change", updateConfiguration);
+
+    updateConfiguration(); // Initialize on load
+  </script>
+</body>
+</html>
